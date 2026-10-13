@@ -5,6 +5,9 @@ Go directly to pybmca.py, after the "if __name__ ..." the figures for the paper 
 
 In the section "play" make your own experimental design.
 
+For the Neggative Binomial experiments and figures, go to
+pybmca_nbinom.py
+
 Have fun!
 Andrés Christen, Oct 2026.
 
