@@ -8,6 +8,8 @@ Created on Thu May 22 15:19:47 2025
 pybmca:
 
 Python implementation of the Bayesian Microplastics Count Analyses
+
+https://github.com/andreschristen/bmca 
 """
 
 from numpy import floor, zeros, ones, mean, linspace, argmin, array, arange
@@ -15,6 +17,9 @@ from scipy.stats import poisson, gamma, multinomial, dirichlet, beta
 from matplotlib.pylab import subplots
 
 from plotfrozen import PlotFrozenDist
+
+path = "/home/jac/sync/Gente/Marco/Microplasticos"
+
 
 #from two_scales import TwoScales_x_Axes, TwoScales_y_Axes
 
@@ -37,15 +42,15 @@ class pybmca:
          lambda, (# of microplastics / m^2).
        r1: relative cost of counting one MP           
        r2: and relative cost of categorizing one microplastic vs 
-         both vs analyzing one squere meter of sand.
+         analyzing one squere meter of sand.
        c: square meters that may be sampled if the whole budget
          is spent in sampling in the beach 
        A: area sampled per quadrant
        k: number of microplastics categories
-       ga_i_0: \gamma vecotr of parameters for the Dirichlet prior for p
-         is ones(k)*ga_i_0.  May be a scalar or vector.
+       ga_i_0: \gamma vector of parameters for the Dirichlet prior for p
+         if ga_i_0 is scalar then the initial parameter is ones(k)*ga_i_0.
     """
-    def __init__( self, la0, nu0, r1, r2, c, A=0.25*0.25, ga_i_0=1):
+    def __init__( self, la0, nu0, r1, r2, c, A, ga_i_0=1):
         self.la0 = la0
         self.nu0 = nu0
         self.beta = self.la0/self.nu0 #Rate parameter, gamma prior for la
@@ -61,10 +66,16 @@ class pybmca:
         self.r1 = r1
         self.r2 = r2
 
-    
-    def PlotLaPrior( self, color='green', ax=None):
-        ax = PlotFrozenDist( self.la_prior, color=color, ax=ax)
-        ax.set_xlabel(r"MP m$^{-2}$")
+    def ChangeLaPrior( self, la0, nu0):
+        self.la0 = la0
+        self.nu0 = nu0
+        self.beta = self.la0/self.nu0 #Rate parameter, gamma prior for la
+        self.alpha = self.la0*self.beta #shape
+        self.la_prior = gamma(self.alpha, scale=1/self.beta)
+            
+    def PlotLaPrior( self, color='green', linestyle='-', ax=None):
+        ax = PlotFrozenDist( self.la_prior, color=color, linestyle=linestyle, ax=ax)
+        ax.set_xlabel(r"$\Lambda$ (MP m$^{-2}$)")
         ax.set_title(r"Prior for $\Lambda$")
         ax.grid(which='both', color='grey', linestyle='dotted', linewidth=1)
         return ax
@@ -114,9 +125,9 @@ class pybmca:
         xl = ax.get_xlim()
         x = linspace( xl[0], xl[1], num=100)
         if plot_prior:
-            ax.plot( x, self.la_prior.pdf(x), '-', color="green")
+            ax.plot( x, self.la_prior.pdf(x), linestyle=linestyle, color="green")
         #ax.hlines( 0, xl[0], xl[1], color="grey")
-        ax.set_xlabel(r"MP m$^{-2}$")
+        ax.set_xlabel(r"$\Lambda$ (MP m$^{-2}$)")
         ax.grid(which='both', color='grey', linestyle='dotted', linewidth=1)
         if not(la_true is None):
             # True value vertical marker
@@ -194,7 +205,7 @@ class pybmca:
         ns = self.SimNs( T, a)
         return mean(self.L2_star(  ns, self.q( a, ns))), mean(ns), mean(self.q( a, ns))
 
-    def PlotExpVR( self,  a_max=None, plot_L1=True, plot_EL2=True, plot_Eq=True, ax=None):
+    def PlotExpVR( self,  a_max=None, loss_color='black', plot_L1=True, plot_EL2=True, plot_Eq=True, prn_ev=10, ax=None):
         """Plot the Expected Variance Reduction from 0.1 to a_max."""
         if ax is None:
             fig, ax = subplots()            
@@ -205,17 +216,22 @@ class pybmca:
         EL2_star = zeros(num)
         mean_n = zeros(num)
         mean_q = zeros(num)
+        print("Calculating ExpL2_star:")
         for i in range(num):
-            if i % 10 == 0:
+            if i % prn_ev == 0:
                 print("%d of %d" % (i,num-1))
             EL2_star[i], mean_n[i], mean_q[i] = self.ExpL2_star( a[i] )
-        loss = 0.5*self.L1_star(a) + 0.5*EL2_star
+        L1_star = self.L1_star(a)
+        loss = 0.5*L1_star + 0.5*EL2_star
         i_star = argmin(loss)
-        ax.plot( a, loss, 'k-', linewidth=1.5)
-        ax.plot( a[i_star], loss[i_star], color="magenta", marker="*", markersize=10)
+        ax.plot( a, loss, '-', color=loss_color, linewidth=1.5)
+        if loss_color == 'black':
+            ax.plot( a[i_star], loss[i_star], color="magenta", marker="*", markersize=10)
+        else:
+            ax.plot( a[i_star], loss[i_star], color=loss_color, marker="*", markersize=10)            
         ax.axvline( a[i_star], color='grey', linestyle='solid', alpha=0.5 )
         if plot_L1:
-            ax.plot( a, self.L1_star(a), '-.', color='blue')
+            ax.plot( a, L1_star, '-.', color='blue')
         if plot_EL2:
             ax.plot( a, EL2_star, '--', color='orange')
         if plot_Eq:
@@ -224,10 +240,10 @@ class pybmca:
         ax.set_xticks( a, labels=["%d" % (i,) for i in range(a.size)] )
         ax.set_yticks( arange( 0, 1.1, 0.1) )
         #ax.grid(which='both', color='grey', linestyle='dotted', linewidth=1)
-        ax.set_xlabel(r"quadrants $m$")
+        ax.set_xlabel(r"Quadrants $m$")
         
         ax2 = ax.twiny()
-        ax2.plot( a, loss, 'k-')
+        ax2.plot( a, loss, '-', color=loss_color)
         ax2.set_xlabel(r"$a$ (m$^2$)")
         return {'ax':ax, 'i_star':i_star, 'a':a, 'loss':loss, 'EL2_star':EL2_star, 'mean_q':mean_q}
 
@@ -258,12 +274,13 @@ def AnaDesign( inst, a_star, plot_L2=False, ylim=None, ax=None):
 
     return ax    
 
-def PlotDesignFigures( number, mode0, r1, r2, c, alpha=3, plot_L2=False, ana_ylim=None, inset='LaPrior'):
+def PlotDesignFigures( number, mode0, r1, r2, c, A, alpha=3, plot_L2=False, 
+                      ana_ylim=None, inset='LaPrior'):
     alpha = 3
     mode0 = mode0
     be = (alpha-1)/mode0
     la0 = mode0 + 1/be
-    mz = pybmca(la0= la0, nu0= (la0**2)/alpha, r1 = r1, r2 = r2, c = c)
+    mz = pybmca(la0= la0, nu0= (la0**2)/alpha, r1 = r1, r2 = r2, c = c, A = A)
     rt = mz.PlotExpVR(plot_Eq=False)
     i_star = rt['i_star']
     a_star = rt['a'][i_star]
@@ -289,36 +306,42 @@ def PlotDesignFigures( number, mode0, r1, r2, c, alpha=3, plot_L2=False, ana_yli
         tksx = array([ 100, 250, 400, 600, 800, 1000, 1500])
         ax_ana.set_xticks( tksx ) #, [r"%d" % (tk,) for tk in tksx])
         ax_ana.get_figure().tight_layout() 
-        ax_ana.get_figure().savefig("AnaDesign%d.png" % (number,))
+        ax_ana.get_figure().savefig("%s/Figs/AnaDesign%d.png" % ( path, number))
         
     ax.get_figure().tight_layout()    
-    ax.get_figure().savefig("ExpLoss%d.png" % (number,))
+    ax.get_figure().savefig("%s/Figs/ExpLoss%d.png" % ( path, number))
 
     return mz, rt, ax_ana, ax_inset
 
     
 if __name__ == "__main__":
+
+    
     ### The area sampled per 1 m2 quadrant is:
-    A = 0.25*0.25 #=  0.0625
+    A = 0.25*0.25
     ### Cost of sampling 1 m2 quadrant: (25 + 128)/5 + 154 + 616 + 616 + 154 = 1570
-    ### Then sampling 0.0625 m2 costs 1570.
-    ### Sampling 1 m2 costs 1570/0.0625 = 25120.0
+    ### Then sampling A m2 costs 1570.
+    ### Sampling 1 m2 costs 1570/A 
+    CxArea = 1570/A
     ### addehttps://matplotlib.org/stable/gallery/subplots_axes_and_figures/zoom_inset_axes.html#sphx-glr-gallery-subplots-axes-and-figures-zoom-inset-axes-pyd cost of counting samples: 1.28 per particle
-    r1 = 1.28/25120 #aprox. 5e-5
-    r1 = 5e-5 # rounded toq( a=TTomasa_a2, n=TTomasa_n2, vector=False)
+    r1 = 1.28/CxArea
+    #r1 = 5e-5 # rounded toq( a=TTomasa_a2, n=TTomasa_n2, vector=False)
     
     ### categorization per particle: 70 local 1000 foreing    
-    r2 = 70/25120 #aprox 0.002 to 0.02
-    r2 = 3e-3
+    r2 = 70/CxArea
+    #r2 = 3e-3
     
+    ### Old stuff:
     ### Maximum number of particles to analyze: 250
     ### Cost: 250 * 70 
     ###         beach    Categorization
     ### budget: 1570*5 + 150*70         = 25350q( a=TTomasa_a2, n=TTomasa_n2, vector=False)
-    bt = 1570*5 + 200*70 #        
+    #bt = 1570*5 + 200*70 #        
     ### c2: How many **m2 can we sample** if all budget is spent in the beach?
-    ### Sampling 1 m2 costs 1570/0.0625 = 25120.0
-    c = (1570/0.0625)/bt #1.14, 1/(mz1.A * mz1.c) = 13.9
+    ### Sampling 1 m2 costs CxArea
+    #c = CxArea/bt #1.14, 1/(mz1.A * mz1.c) = 13.9
+    
+    c = 1/(10 * A) # Maximum number of quadrants
     
     ###       pristine   afected   strongly polluted
     ### la0 =     10< ,      100,  >1000 
@@ -327,13 +350,15 @@ if __name__ == "__main__":
     from matplotlib import rcParams
     rcParams.update({'font.size': 14})
     
-    joan = False
+    play = False
     design = True
     example = True
-    if joan:
+    robust = True
+    if play:
         ###  Setting and calculate the design
         mz, rt, ax_ana, ax_inset = PlotDesignFigures( number=5,
-                   mode0=200, r1=r1, r2=r2, c=1/(12 * A), alpha=3, plot_L2=True)
+                   mode0=200, r1=r1, r2=r2, c=1/(12 * A), A=A, 
+                   alpha=3, plot_L2=True)
         ### Resulting design
         m_star = rt['i_star'] #Optimal number of quadrants
         a_star = mz.A*m_star #Optimal areaq( a=TTomasa_a2, n=TTomasa_n2, vector=False)
@@ -342,7 +367,8 @@ if __name__ == "__main__":
         La = 500 #True Lambda
         n_obs = floor(La*a_star) #Expected number of observations
         ### PLot the posterior for Lambda
-        ax = mz.PlotPostLa( a=a_star, n=n_obs, la_true=La,   fill=True, color='blue', ax=None, lw=1.5)
+        ax = mz.PlotPostLa( a=a_star, n=n_obs, la_true=La, 
+                           fill=True, color='blue', ax=None, lw=1.5)
         ax.set_title(r"$m=%d, n=%d$" % ( m_star, n_obs)) 
         ### True polymer proportions %
         ### ['PE', 'PP', 'PET', 'q( a=TTomasa_a2, n=TTomasa_n2, vector=False)PS', 'PA', 'PVC', 'PU', 'AC', 'PES', 'NPP']
@@ -367,31 +393,40 @@ if __name__ == "__main__":
     if design:
         ### Illustration moving a priori
         mz1, rt1, ax_ana1, ax_inset1 = PlotDesignFigures( number=1,
-                   mode0=200, r1=r1, r2=r2, c=1/(12 * A), alpha=3, plot_L2=True, ana_ylim=(0,1.7))
+                   mode0=200, r1=r1, r2=r2, c=1/(10 * A), A=A, 
+                   alpha=3, plot_L2=True, ana_ylim=(0,1.7))
         mz2, rt2, ax_ana2, ax_inset2 = PlotDesignFigures( number=2,
-                   mode0=800, r1=r1, r2=r2, c=1/(12 * A), alpha=3, plot_L2=True, ana_ylim=(0,1.7)) 
+                   mode0=800, r1=r1, r2=r2, c=1/(10 * A), A=A, 
+                   alpha=3, plot_L2=True, ana_ylim=(0,1.7)) 
+
         ### Twice expensive FTIR 
         mz3, rt3, ax_ana3, ax_inset3 = PlotDesignFigures( number=3, 
-                   mode0=200, r1=r1, r2=r2*2, c=1/(12 * A), alpha=3, inset='AnaDesign')
+                   mode0=200, r1=r1, r2=r2*2, c=1/(10 * A), A=A, 
+                   alpha=3, inset='AnaDesign')
         ### Very expensive FTIR
         mz4, rt4, ax_ana4, ax_inset4 = PlotDesignFigures( number=4, 
-                   mode0=800, r1=r1, r2=r2*1000, c=1/(12 * A), alpha=3, inset='AnaDesign')
-    
+                   mode0=800, r1=r1, r2=r2*1000, c=1/(10 * A), A=A, 
+                   alpha=3, inset='AnaDesign')
+        
         ### Lower budget
         mz5, rt5, ax_ana5, ax_inset5 = PlotDesignFigures( number=5, 
-                   mode0=200, r1=r1, r2=r2, c=1/(8 * A), alpha=3, inset='AnaDesign')
+                   mode0=200, r1=r1, r2=r2, c=1/(8 * A), A=A, 
+                   alpha=3, inset='AnaDesign')
         mz6, rt6, ax_ana6, ax_inset1 = PlotDesignFigures( number=6, 
-                   mode0=800, r1=r1, r2=r2, c=1/(8 * A), alpha=3, inset='AnaDesign')
+                   mode0=800, r1=r1, r2=r2, c=1/(8 * A), A=A, 
+                   alpha=3, inset='AnaDesign')
     
         ### Insisting in sampling 5 quadrants, even with a contaminated beach
         mz7, rt7, ax_ana7, ax_inset6 = PlotDesignFigures( number=8, 
-                   mode0=800, r1=r1, r2=r2, c=1/(14 * A), alpha=3, inset='AnaDesign') 
+                   mode0=800, r1=r1, r2=r2, c=1/(16 * A), A=A, 
+                   alpha=3, inset='AnaDesign') 
         ### Same setting but expecting a less contaminated beach
         mz7, rt7, ax_ana7, ax_inset6 = PlotDesignFigures( number=7, 
-                   mode0=200, r1=r1, r2=r2, c=1/(14 * A), alpha=3, inset='AnaDesign') 
+                   mode0=200, r1=r1, r2=r2, c=1/(16 * A), A=A, 
+                   alpha=3, inset='AnaDesign') 
     if example:
         ### Design, equal to T de la Tomasa
-        TTomasa_A = 0.25 * 0.25
+        TTomasa_A = A #0.25 * 0.25 # ESTABA MAL TAMBIEN
         ### ['PE', 'PP', 'PET', 'PS', 'PA', 'PVC', 'PU', 'AC', 'PES', 'NPP']
         TTomasa_P = \
             [  52,   34,     0,   13,    1,     0,    0,    0,     0,    0 ]
@@ -408,13 +443,16 @@ if __name__ == "__main__":
         mode0 = 200
         be = (alpha-1)/mode0
         la0 = mode0 + 1/be
-        TT = pybmca(la0= la0, nu0= (la0**2)/alpha, r1=r1, r2=r2, c=1/(12 * A))
-        ax_ex1_la = TT.PlotPostLa( a=TTomasa_a1, n=TTomasa_n1, la_true=TTomasa_La, linestyle='-',  fill=True, color='blue', ax=None, lw=1.5)
+        TT = pybmca(la0= la0, nu0= (la0**2)/alpha, r1=r1, r2=r2, 
+                    c=1/(10 * A), A=A)
+        ax_ex1_la = TT.PlotPostLa( a=TTomasa_a1, n=TTomasa_n1, 
+                    la_true=TTomasa_La, linestyle='-',  fill=True, 
+                    color='blue', ax=None, lw=1.5)
         ax_ex1_la = TT.PlotPostLa( a=TTomasa_a2, n=TTomasa_n2, la_true=TTomasa_La, linestyle='--', fill=True, color='blue',  ax=ax_ex1_la, lw=1.5)
         #ax_ex1_la.set_title(r"$m_1=5, n_1=%d$ vs. $m_2=7, n_2=%d$" % (TTomasa_n1,TTomasa_n2)) 
         ax_ex1_la.set_title("")
         ax_ex1_la.get_figure().tight_layout()    
-        ax_ex1_la.get_figure().savefig("ExaLaPost1.png")
+        ax_ex1_la.get_figure().savefig("%s/Figs/ExaLaPost1.png" %path)
         s1 = TTomasa_P * TTomasa_n1
         q = TT.q( a=TTomasa_a2, n=TTomasa_n2, vector=False)
         sq = TTomasa_P * TTomasa_n2 * q
@@ -426,7 +464,7 @@ if __name__ == "__main__":
         ax_ex1[0].set_title("")
         ax_ex1[-1].set_xlim((0,0.65))
         ax_ex1[0].get_figure().tight_layout()
-        ax_ex1[0].get_figure().savefig("ExaPMargs1.png")
+        ax_ex1[0].get_figure().savefig("%s/Figs/ExaPMargs1.png" %path)
         
 
         ### Same but witn higher abundance
@@ -442,7 +480,7 @@ if __name__ == "__main__":
         #ax_ex2_la.set_title(r"$m_1=5, n_1=%d$ vs. $m_2=7, n_2=%d$" % (TTomasa_n1,TTomasa_n2)) 
         ax_ex2_la.set_title("")
         ax_ex2_la.get_figure().tight_layout()
-        ax_ex2_la.get_figure().savefig("ExaLaPost2.png")
+        ax_ex2_la.get_figure().savefig("%s/Figs/ExaLaPost2.png" %path)
         s1 = TTomasa_P * TTomasa_n1
         q = TT.q( a=TTomasa_a2, n=TTomasa_n2, vector=False)
         sq = TTomasa_P * TTomasa_n2 * q
@@ -454,7 +492,7 @@ if __name__ == "__main__":
         ax_ex2[0].set_title("")
         ax_ex2[-1].set_xlim((0,0.65))
         ax_ex2[0].get_figure().tight_layout()
-        ax_ex2[0].get_figure().savefig("ExaPMargs2.png")
+        ax_ex2[0].get_figure().savefig("%s/Figs/ExaPMargs2.png" %path)
         
         ### An example with low abudance
         La = 5
@@ -475,7 +513,7 @@ if __name__ == "__main__":
         ex3_ylim = ax_ex3.set_ylim()
         ax_ex3.indicate_inset_zoom( ax_ex3_inset, edgecolor="black")
         ax_ex3.get_figure().tight_layout()
-        ax_ex3.get_figure().savefig("ExaLowLa.png")
+        ax_ex3.get_figure().savefig("%s/Figs/ExaLowLa.png" %path)
 
         ### An example with midium abudance
         La = 80
@@ -487,7 +525,67 @@ if __name__ == "__main__":
         ax_ex4.set_xlim((0,250))
         ax_ex4.set_ylim(ex3_ylim)
         ax_ex4.get_figure().tight_layout()
-        ax_ex4.get_figure().savefig("ExaMidiumLa.png")
+        ax_ex4.get_figure().savefig("%s/Figs/ExaMidiumLa.png" %path)
         
+    if robust:
+        alpha = 3
+        mode0 = 50
+        beta = (alpha-1)/mode0
+        la0 = mode0 + 1/beta
+        mz = pybmca(la0= la0, nu0= (la0**2)/alpha, 
+                    r1=r1, r2=r2, c=1/(10 * A), A=A)
+        m = 5
+
+        ### Low La
+        La = 25
+        ### Moderate a prior
+        mode0 = 50
+        beta = (alpha-1)/mode0
+        la0 = mode0 + 1/beta
+        mz.ChangeLaPrior(la0=la0, nu0=(la0**2)/alpha)
+        ax = mz.PlotPostLa( a=m*mz.A, n=floor(La*mz.A*m), la_true=La, 
+                           color='blue', plot_prior=False, fill=True)
+        ax = mz.PlotLaPrior( ax=ax)
+
+        ### Discrepant a prior
+        mode0 = 500
+        beta = (alpha-1)/mode0
+        la0 = mode0 + 1/beta
+        mz.ChangeLaPrior(la0=la0, nu0=(la0**2)/alpha)
+        ax = mz.PlotPostLa( a=m*mz.A, n=floor(La*mz.A*m), la_true=La, linestyle='--',
+                           color='blue', fill=True, plot_prior=False, ax=ax)
+        ax = mz.PlotLaPrior( linestyle='--', ax=ax)
+        ax.set_xlim((-10,75))
+        ax.grid(visible=False)
+        #ax_ex3.set_title(r"$m_1=5, n_1=%d$ vs. $m_2=7, n_2=%d$" % (floor(La*TT.A*5),floor(La*TT.A*7))) 
+        ax.set_title("")
+        ax.get_figure().tight_layout()
+        ax.get_figure().savefig("%s/Figs/Robust1.png" %path)
+
+        ### High La
+        La = 400
+        ### Discrepant prior
+        mode0 = 50
+        beta = (alpha-1)/mode0
+        la0 = mode0 + 1/beta
+        mz.ChangeLaPrior(la0=la0, nu0=(la0**2)/alpha)
+        ax = mz.PlotPostLa( a=m*mz.A, n=floor(La*mz.A*m), la_true=La, 
+                           color='blue', plot_prior=False, fill=True)
+        ax = mz.PlotLaPrior( ax=ax)
+
+        ### Concordant a prior
+        mode0 = 500
+        beta = (alpha-1)/mode0
+        la0 = mode0 + 1/beta
+        mz.ChangeLaPrior(la0=la0, nu0=(la0**2)/alpha)
+        ax = mz.PlotPostLa( a=m*mz.A, n=floor(La*mz.A*m), la_true=La, linestyle='--', 
+                           color='blue', fill=True, plot_prior=False, ax=ax)
+        ax = mz.PlotLaPrior( linestyle='--', ax=ax)
+        ax.set_xlim((-10,600))
+        ax.grid(visible=False)
+        #ax_ex3.set_title(r"$m_1=5, n_1=%d$ vs. $m_2=7, n_2=%d$" % (floor(La*TT.A*5),floor(La*TT.A*7))) 
+        ax.set_title("")
+        ax.get_figure().tight_layout()
+        ax.get_figure().savefig("%s/Figs/Robust2.png" %path)
         
         
