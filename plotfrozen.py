@@ -10,8 +10,8 @@ Created on 2016-2026
 from numpy import arange, linspace
 from matplotlib.pylab import subplots
 
-def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k', add_grid=True,
-                   ax=None, **kwargs):
+def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k', 
+                   fill=False, add_grid=True, ax=None, **kwargs):
     """Plots the instanced (frozen) univariate probability distribution frv, the range
        to plot is chosen from the q quantile to the 1-q quantile.  Automatically
        checks if dist is discrte or continous.  It is assumed that all discrete distributions
@@ -48,6 +48,8 @@ def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k', ad
         x = linspace( frv.ppf(q0), frv.ppf(q1), N)
         y = frv.pdf(x)
         ax.plot(x, y, linestyle=linestyle, color=color, **kwargs)
+        if fill:
+            ax.fill_between(x, 0, y, alpha=0.3, color=color, **kwargs)
         if add_grid:
             ax.grid(which='both', color='grey', linestyle='dotted', linewidth=0.5)
     else:
