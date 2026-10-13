@@ -11,7 +11,7 @@ from numpy import arange, linspace
 from matplotlib.pylab import subplots
 
 def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k', 
-                   fill=False, add_grid=True, ax=None, **kwargs):
+                   fill=False, alpha_fill=0.3, add_grid=True, ax=None, **kwargs):
     """Plots the instanced (frozen) univariate probability distribution frv, the range
        to plot is chosen from the q quantile to the 1-q quantile.  Automatically
        checks if dist is discrte or continous.  It is assumed that all discrete distributions
@@ -25,6 +25,13 @@ def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k',
        PlotFrozenDist( norm( loc=10, scale=2) ) # plot N( 10, 2)
 
         returns the Axes
+        
+       Other options:
+           N: grid size, for continous rv's.
+           linestyle, marker, color, and other **kwargs are passed to plot.
+           fill, alpha_fill: also use ax.fill_between, with alpha=alpha_fill for nicer plots
+           add_grid: boolen
+           ax: pass an Axes to plot on, if None, creates one.
     """
 
     if (isinstance(q, float)):
@@ -49,7 +56,7 @@ def PlotFrozenDist( frv, q=1e-6, N=200, linestyle='-', marker='o', color='k',
         y = frv.pdf(x)
         ax.plot(x, y, linestyle=linestyle, color=color, **kwargs)
         if fill:
-            ax.fill_between(x, 0, y, alpha=0.3, color=color, **kwargs)
+            ax.fill_between(x, 0, y, alpha=alpha_fill, color=color, **kwargs)
         if add_grid:
             ax.grid(which='both', color='grey', linestyle='dotted', linewidth=0.5)
     else:
