@@ -169,7 +169,8 @@ class pybmca:
             ax[j].fill_between(x, 0, y, alpha=0.3, color=f"C{i}")
             if not(p_true is None):
                 # True value vertical marker
-                ax[j].plot( p_true[i], 0, marker='*', markersize=5, color=f"C{i}")
+                ax[j].vlines( p_true[i], 0, 0.1*ax[j].get_ylim()[1], 
+                             linestyle="-", color="black", lw=1)
             ax[j].set_ylabel(self.MP_names[i])
         mx = 0.0
         for j in range(len(include_MPs)):
