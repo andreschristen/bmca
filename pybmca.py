@@ -10,6 +10,13 @@ pybmca:
 Python implementation of the Bayesian Microplastics Count Analyses
 
 https://github.com/andreschristen/bmca 
+
+Modify the path below, after the imports, to your local preference, 
+and go to if __main__ ... 
+
+It will create all figures used in the paper. 
+
+
 """
 
 from numpy import floor, zeros, ones, mean, linspace, argmin, array, arange

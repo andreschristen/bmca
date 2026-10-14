@@ -1,7 +1,10 @@
 # bmca
 Bayesian Microplastics Count Analyses
 
-Go directly to pybmca.py, after the "if __name__ ..." the figures for the paper are created.
+Go directly to pybmca.py and modify the path, after the imports,
+to your local preference. 
+
+After the "if __name__ ...", the figures for the paper are created.
 
 In the section "play" make your own experimental design.
 

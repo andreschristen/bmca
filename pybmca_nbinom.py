@@ -13,6 +13,11 @@ https://github.com/andreschristen/bmca
 
 Camparison with a negative binomial distribution.
 
+Modify the path below, after the imports, to your local preference, 
+and go to if __main__ ... 
+
+It will create all figures used in the paper. 
+
 """
 import sys
 import pickle
