@@ -10,6 +10,13 @@ pybmca:
 Python implementation of the Bayesian Microplastics Count Analyses
 
 https://github.com/andreschristen/bmca 
+
+Modify the path below, after the imports, to your local preference, 
+and go to if __main__ ... 
+
+It will create all figures used in the paper. 
+
+
 """
 
 from numpy import floor, zeros, ones, mean, linspace, argmin, array, arange
@@ -162,7 +169,8 @@ class pybmca:
             ax[j].fill_between(x, 0, y, alpha=0.3, color=f"C{i}")
             if not(p_true is None):
                 # True value vertical marker
-                ax[j].plot( p_true[i], 0, marker='*', markersize=5, color=f"C{i}")
+                ax[j].vlines( p_true[i], 0, 0.1*ax[j].get_ylim()[1], 
+                             linestyle="-", color="black", lw=1)
             ax[j].set_ylabel(self.MP_names[i])
         mx = 0.0
         for j in range(len(include_MPs)):
